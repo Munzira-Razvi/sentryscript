@@ -1,6 +1,7 @@
+import os
 from dataclasses import dataclass, field
 from lark import Lark, Transformer
-
+from lark.exceptions import UnexpectedInput, VisitError
 LEVELS = ("low", "medium", "high", "critical")
 
 @dataclass
@@ -66,13 +67,28 @@ class ToAST(Transformer):
                 actions = it
         return Rule(name=name, severity=severity, actions=actions, **when)
 
+class SentryError(Exception):
+    """A problem in a rule file, with a message safe to show to users."""
+
+GRAMMAR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grammar.lark")
+
 def load_rules(path):
-    with open("grammar.lark") as f:
+    with open(GRAMMAR) as f:
         parser = Lark(f.read(), parser="lalr")
     with open(path) as f:
-        tree = parser.parse(f.read())
-    return ToAST().transform(tree)
-
+        text = f.read()
+    try:
+        tree = parser.parse(text)
+        return ToAST().transform(tree)
+    except UnexpectedInput as e:
+        expected = getattr(e, "expected", None) or getattr(e, "allowed", None)
+        hint = f"\nExpected one of: {', '.join(sorted(expected))}" if expected else ""
+        raise SentryError(
+            f"Syntax error in {path}, line {e.line}, column {e.column}:\n"
+            f"{e.get_context(text)}{hint}"
+        )
+    except VisitError as e:
+        raise SentryError(f"Problem in {path}: {e.orig_exc}")
 if __name__ == "__main__":
     for r in load_rules("rules.sentry"):
         print(r)
