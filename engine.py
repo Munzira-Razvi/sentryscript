@@ -1,7 +1,17 @@
 import json
 from collections import defaultdict, deque
 from datetime import datetime
-from parser import load_rules
+from parser import load_rules, Alert, Block
+
+COLORS = {"low": "\033[36m", "medium": "\033[33m",
+          "high": "\033[31m", "critical": "\033[1;41m"}
+RESET = "\033[0m"
+
+def fmt_duration(seconds):
+    for unit, size in (("h", 3600), ("m", 60)):
+        if seconds % size == 0:
+            return f"{seconds // size}{unit}"
+    return f"{seconds}s"
 
 def load_events(path):
     events = []
@@ -17,7 +27,6 @@ def load_events(path):
 
 def run(rules, events):
     alerts = []
-    # For each rule: a separate sliding window of timestamps per group (e.g. per IP)
     windows = {r.name: defaultdict(deque) for r in rules}
 
     for event in events:
@@ -31,20 +40,26 @@ def run(rules, events):
             window = windows[rule.name][key]
             window.append(event)
 
-            # Slide the window: drop events older than the time limit
             while window and event["_ts"] - window[0]["_ts"] > rule.window:
                 window.popleft()
 
-            # Threshold reached: fire the alert
             if len(window) >= rule.threshold:
+                results = []
+                for action in rule.actions:
+                    if isinstance(action, Alert):
+                        results.append(("alert", action.message.format_map(event)))
+                    elif isinstance(action, Block):
+                        target = event.get(action.field)
+                        results.append(("block", f"{target} for "
+                                        f"{fmt_duration(action.seconds)} (simulated)"))
                 alerts.append({
                     "rule": rule.name,
+                    "severity": rule.severity,
                     "time": event["time"],
-                    "message": rule.message.format_map(event),
+                    "actions": results,
                     "evidence": list(window),
                 })
-                window.clear()  # avoid repeating the same alert
-
+                window.clear()
     return alerts
 
 if __name__ == "__main__":
@@ -54,8 +69,10 @@ if __name__ == "__main__":
 
     print(f"Processed {len(events)} events with {len(rules)} rule(s)\n")
     for a in alerts:
-        print(f"[ALERT] {a['rule']} at {a['time']}")
-        print(f"        {a['message']}")
-        print(f"        triggered by {len(a['evidence'])} events\n")
+        color = COLORS[a["severity"]]
+        print(f"{color}[{a['severity'].upper()}]{RESET} {a['rule']} at {a['time']}")
+        for kind, text in a["actions"]:
+            print(f"  {kind}: {text}")
+        print(f"  triggered by {len(a['evidence'])} events\n")
     if not alerts:
         print("No alerts.")

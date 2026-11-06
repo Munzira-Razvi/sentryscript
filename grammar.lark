@@ -1,9 +1,15 @@
 start: rule+
 
-rule: "rule" CNAME "{" when_clause then_clause "}"
+rule: "rule" CNAME "{" severity? when_clause then_clause "}"
+
+severity: "severity" ":" CNAME
 
 when_clause: "when" CNAME "from" CNAME "count" ">=" INT "within" duration
-then_clause: "then" "alert" ESCAPED_STRING
+then_clause: "then" action+
+
+?action: alert_action | block_action
+alert_action: "alert" ESCAPED_STRING
+block_action: "block" CNAME "for" duration
 
 duration: INT UNIT
 UNIT: /[smh]/

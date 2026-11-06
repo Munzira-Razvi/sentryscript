@@ -1,5 +1,7 @@
 # Detect brute-force logins
 rule brute_force {
+  severity: high
   when failed_login from ip count >= 5 within 2m
   then alert "Brute force from {ip}"
+       block ip for 30m
 }
