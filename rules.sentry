@@ -1,0 +1,5 @@
+# Detect brute-force logins
+rule brute_force {
+  when failed_login from ip count >= 5 within 2m
+  then alert "Brute force from {ip}"
+}

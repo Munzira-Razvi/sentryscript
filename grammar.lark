@@ -1,0 +1,18 @@
+start: rule+
+
+rule: "rule" CNAME "{" when_clause then_clause "}"
+
+when_clause: "when" CNAME "from" CNAME "count" ">=" INT "within" duration
+then_clause: "then" "alert" ESCAPED_STRING
+
+duration: INT UNIT
+UNIT: /[smh]/
+
+COMMENT: /#[^\n]*/
+
+%import common.CNAME
+%import common.INT
+%import common.ESCAPED_STRING
+%import common.WS
+%ignore WS
+%ignore COMMENT
