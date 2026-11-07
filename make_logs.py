@@ -27,20 +27,23 @@ for i in range(12):
     add(start + timedelta(minutes=20, seconds=i * 20),
         "failed_login", "203.0.113.50", "admin", "CN")
 
+# Attacker 3: guessing from inside the home country (9 failures in 90 seconds)
+for i in range(9):
+    add(start + timedelta(minutes=40, seconds=i * 10),
+        "failed_login", "192.168.1.200", "sara", "PK")
+
 # Admin actions: one suspicious, one scheduled backup job, one normal
 add(datetime(2026, 11, 6, 2, 14, 9), "admin_action", "172.16.0.7", "root", "PK")
 add(datetime(2026, 11, 6, 3, 0, 0), "admin_action", "172.16.0.9", "backup", "PK")
 add(datetime(2026, 11, 6, 10, 30, 0), "admin_action", "172.16.0.8", "sara", "PK")
 
-events.sort(key=lambda e: e["time"])
-
 # Admin login from an address nobody recognises
 add(datetime(2026, 11, 6, 11, 15, 0), "login", "198.51.100.23", "admin", "RU")
 
-# Attacker 3: guessing from inside the home country
-for i in range(9):
-    add(start + timedelta(minutes=40, seconds=i * 10),
-        "failed_login", "192.168.1.200", "sara", "PK")
+# Admin login from a trusted address (should NOT alert)
+add(datetime(2026, 11, 6, 9, 0, 0), "login", "172.16.0.7", "admin", "PK")
+
+events.sort(key=lambda e: e["time"])
 
 with open("events.jsonl", "w") as f:
     for e in events:
