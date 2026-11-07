@@ -1,7 +1,15 @@
 import argparse
 import sys
 from parser import load_rules, SentryError
-from engine import load_events, run, COLORS, RESET
+from engine import parse_events, run, COLORS, RESET
+from logformats import parse_auth_log
+
+def read_events(path, fmt, year):
+    with open(path, encoding="utf-8", errors="replace") as f:
+        text = f.read()
+    if fmt == "auth":
+        return parse_auth_log(text, year)
+    return parse_events(text)
 
 def print_alerts(alerts, explain=False):
     for a in alerts:
@@ -32,6 +40,10 @@ def main():
     runp.add_argument("events")
     runp.add_argument("--explain", action="store_true",
                       help="show the events that triggered each alert")
+    runp.add_argument("--format", choices=["jsonl", "auth"], default="jsonl",
+                      help="log format: jsonl (default) or auth (Linux auth.log)")
+    runp.add_argument("--year", type=int,
+                      help="year for auth.log timestamps (default: this year)")
 
     args = ap.parse_args()
 
@@ -40,7 +52,7 @@ def main():
         if args.command == "check":
             print(f"OK: {len(rules)} rule(s) valid in {args.rules}")
             return
-        events = load_events(args.events)
+        events = read_events(args.events, args.format, args.year)
         alerts = run(rules, events)
     except SentryError as e:
         print(f"error: {e}")

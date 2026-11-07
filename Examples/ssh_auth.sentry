@@ -1,0 +1,21 @@
+# SSH brute force from any source
+rule ssh_brute_force {
+  severity: high
+  when failed_login from ip count >= 5 within 2m
+  then alert "SSH brute force from {ip} (targeting {user})"
+       block ip for 1h
+}
+
+# Direct attacks on the root account
+rule root_guessing {
+  severity: critical
+  when failed_login from ip count >= 3 within 1m and user == "root"
+  then alert "Root login attempts from {ip}"
+}
+
+# Privileged commands outside business hours
+rule off_hours_sudo {
+  severity: medium
+  when admin_action at time not in 07:00..20:00
+  then alert "Privileged command by {user} outside business hours"
+}

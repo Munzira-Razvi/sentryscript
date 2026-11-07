@@ -7,6 +7,10 @@ COLORS = {"low": "\033[36m", "medium": "\033[33m",
           "high": "\033[31m", "critical": "\033[1;41m"}
 RESET = "\033[0m"
 
+class SafeDict(dict):
+    def __missing__(self, key):
+        return "?"
+    
 def fmt_duration(seconds):
     for unit, size in (("h", 3600), ("m", 60)):
         if seconds % size == 0:
@@ -36,7 +40,7 @@ def make_results(rule, event):
     results = []
     for action in rule.actions:
         if isinstance(action, Alert):
-            results.append(("alert", action.message.format_map(event)))
+            results.append(("alert", action.message.format_map(SafeDict(event))))
         elif isinstance(action, Block):
             target = event.get(action.field)
             results.append(("block", f"{target} for "
