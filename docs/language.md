@@ -48,6 +48,26 @@ and <field> == 42
 An event must pass every filter before it is counted or checked. Filters read
 any field of the event.
 
+## Lists
+
+Define a list once, anywhere in the file, and reuse it in any number of rules:
+
+```
+let trusted = ["172.16.0.7", "172.16.0.8"]
+let privileged = ["admin", "root"]
+```
+
+Lists hold text or numbers. Use them in filters:
+
+```
+and user in privileged
+and ip not in trusted
+```
+
+A list can also be written inline: `and ip not in ["10.0.0.1", "10.0.0.2"]`.
+Matching is exact and case-sensitive. Using a list that was never defined is an
+error that names the rule and the list.
+
 ## Durations
 
 A number followed by `s`, `m` or `h`: `30s`, `2m`, `1h`.

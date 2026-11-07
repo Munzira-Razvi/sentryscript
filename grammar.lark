@@ -1,4 +1,8 @@
-start: rule+
+start: (let_stmt | rule)+
+
+let_stmt: "let" CNAME "=" list_lit
+list_lit: "[" (value ("," value)*)? "]"
+value: ESCAPED_STRING | INT
 
 rule: "rule" CNAME "{" severity? when_clause then_clause "}"
 
@@ -10,7 +14,10 @@ time_when: "when" CNAME "at" "time" negate? "in" TIME ".." TIME filters
 negate: "not"
 
 filters: ("and" filter)*
-filter: CNAME OP (ESCAPED_STRING | INT)
+filter: CNAME OP value                 -> compare_filter
+      | CNAME "in" membership          -> in_filter
+      | CNAME "not" "in" membership    -> not_in_filter
+membership: CNAME | list_lit
 
 then_clause: "then" action+
 

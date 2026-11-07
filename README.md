@@ -28,6 +28,7 @@ rule brute_force {
 - **Helpful errors**: file, line, column, a caret under the mistake, and what was expected
 - **Editor support**: syntax highlighting for `.sentry` files in VS Code
 - **Safe by design**: actions such as `block` are simulated, so rules can be tested freely
+- **Lists**: define a list once (`let trusted = [...]`) and test it with `in` / `not in`
 
 ## Quick start
 
@@ -84,6 +85,18 @@ when admin_action at time not in 08:00..18:00
 ```
 when admin_action at time not in 08:00..18:00 and user != "backup"
 ```
+
+**Lists** are defined once and reused with `in` / `not in`:
+
+```
+let trusted_admin_ips = ["172.16.0.7", "172.16.0.8"]
+
+rule unknown_admin_login {
+  when login from ip count >= 1 within 1m and ip not in trusted_admin_ips
+  then alert "Admin login from unfamiliar address {ip}"
+}
+```
+
 
 **Actions**: `alert "message with {fields}"` and `block <field> for <duration>`.
 **Severity** (optional): `low | medium | high | critical`.
@@ -143,7 +156,6 @@ that triggered each one.
 
 ## Roadmap
 
-- Export rules to Sigma format
 - More actions (webhooks, email)
 - Web-server log formats (nginx, Apache)
 - Live mode that watches a log file as it grows

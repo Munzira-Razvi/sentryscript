@@ -1,7 +1,19 @@
 # ==========================================================
 # SentryScript detection policy for our login system
-# Home country: PK. Trusted admin addresses: 172.16.0.7, 172.16.0.8
+# Home country: PK
 # ==========================================================
+
+# ----- Lists used by the rules below ----------------------
+# Define a list once with "let", then test against it with "in" / "not in".
+
+# Accounts worth protecting most
+let privileged_accounts = ["admin", "root"]
+
+# Addresses we trust for administrator logins. Update when they change.
+let trusted_admin_ips = ["172.16.0.7", "172.16.0.8"]
+
+# Accounts used by scheduled jobs, which are expected to work at night
+let service_accounts = ["backup"]
 
 
 # ----- Password guessing ----------------------------------
@@ -25,30 +37,29 @@ rule home_country_guessing {
   then alert "Repeated failures from {ip} inside the home country"
 }
 
-# Fast guessing aimed at the admin account, from any country.
-# Stricter window (1 minute) because admin is the most valuable target.
+# Fast guessing aimed at a privileged account, from any country.
+# Stricter window (1 minute) because these accounts are the most valuable targets.
 rule admin_targeted {
   severity: critical
-  when failed_login from ip count >= 5 within 1m and user == "admin"
-  then alert "Admin account targeted from {ip}"
+  when failed_login from ip count >= 5 within 1m and user in privileged_accounts
+  then alert "Privileged account {user} targeted from {ip}"
 }
 
 
 # ----- Suspicious admin activity --------------------------
 
-# Admin actions outside working hours (08:00 to 18:00).
-# The scheduled backup job runs at night on purpose, so it is excluded.
+# Admin actions outside working hours (08:00 to 18:00),
+# except scheduled jobs, which run at night on purpose.
 rule off_hours_admin {
   severity: medium
-  when admin_action at time not in 08:00..18:00 and user != "backup"
+  when admin_action at time not in 08:00..18:00 and user not in service_accounts
   then alert "Off-hours admin action by {user}"
 }
 
-# A successful admin login from an address we don't recognise.
-# "count >= 1" means any single event; the two != filters list our trusted
-# admin addresses. Update them when the trusted addresses change.
+# A successful login to a privileged account from an address we don't trust.
+# "count >= 1" means any single event.
 rule unknown_admin_login {
   severity: high
-  when login from ip count >= 1 within 1m and user == "admin" and ip != "172.16.0.7" and ip != "172.16.0.8"
+  when login from ip count >= 1 within 1m and user in privileged_accounts and ip not in trusted_admin_ips
   then alert "Admin login from unfamiliar address {ip}"
 }

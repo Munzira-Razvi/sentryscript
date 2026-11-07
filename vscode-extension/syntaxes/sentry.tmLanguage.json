@@ -15,7 +15,7 @@
     { "name": "entity.name.function.rule.sentry",
       "match": "(?<=rule\\s)[A-Za-z_][A-Za-z0-9_]*" },
     { "name": "keyword.control.sentry",
-      "match": "\\b(rule|when|then|and|not|in|at|time|from|count|within|for|severity)\\b" },
+      "match": "\\b(rule|when|then|and|not|in|at|time|from|count|within|for|severity|let)\\b" },
     { "name": "support.function.sentry", "match": "\\b(alert|block)\\b" },
     { "name": "constant.language.severity.sentry",
       "match": "\\b(low|medium|high|critical)\\b" },

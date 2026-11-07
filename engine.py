@@ -10,7 +10,7 @@ RESET = "\033[0m"
 class SafeDict(dict):
     def __missing__(self, key):
         return "?"
-    
+
 def fmt_duration(seconds):
     for unit, size in (("h", 3600), ("m", 60)):
         if seconds % size == 0:
@@ -33,7 +33,7 @@ def parse_events(text):
     return events
 
 def load_events(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return parse_events(f.read())
 
 def make_results(rule, event):
@@ -58,6 +58,10 @@ def passes(rule, event):
         if f.op == "==" and actual != f.value:
             return False
         if f.op == "!=" and actual == f.value:
+            return False
+        if f.op == "in" and actual not in f.value:
+            return False
+        if f.op == "not in" and actual in f.value:
             return False
     return True
 

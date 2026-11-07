@@ -176,3 +176,59 @@ def test_auth_log_is_converted_to_events():
 def test_unrecognised_log_gives_a_clear_error():
     with pytest.raises(SentryError):
         parse_auth_log("this is not a log file\n", year=2026)
+
+        # ---------- lists: let, in, not in ----------
+
+LIST_RULES = '''
+let trusted = ["172.16.0.7", "172.16.0.8"]
+
+rule unknown_login {
+  when login from ip count >= 1 within 1m and user == "admin" and ip not in trusted
+  then alert "Unfamiliar admin login from {ip}"
+}
+'''
+
+
+def login(ip, user="admin"):
+    return {"time": "2026-11-06T11:00:00", "type": "login",
+            "ip": ip, "user": user}
+
+
+def test_not_in_list_flags_only_unlisted_values():
+    events = make_events(login("172.16.0.7"), login("198.51.100.23"))
+    alerts = run(parse_rules(LIST_RULES), events)
+    assert len(alerts) == 1
+    assert alerts[0]["actions"][0][1] == "Unfamiliar admin login from 198.51.100.23"
+
+
+def test_in_list_matches_only_listed_values():
+    rules = parse_rules('''
+    let privileged = ["admin", "root"]
+    rule r {
+      when failed_login from ip count >= 2 within 1m and user in privileged
+      then alert "x"
+    }
+    ''')
+    hit = make_events(failed("1.1.1.1", 0, 0, user="root"),
+                      failed("1.1.1.1", 0, 5, user="root"))
+    miss = make_events(failed("2.2.2.2", 0, 0, user="sara"),
+                       failed("2.2.2.2", 0, 5, user="sara"))
+    assert len(run(rules, hit)) == 1
+    assert run(rules, miss) == []
+
+
+def test_inline_list_works_without_let():
+    rules = parse_rules('''
+    rule r {
+      when login from ip count >= 1 within 1m and ip not in ["10.0.0.1", "10.0.0.2"]
+      then alert "x"
+    }
+    ''')
+    events = make_events(login("10.0.0.1"), login("10.0.0.9"))
+    assert len(run(rules, events)) == 1
+
+
+def test_undefined_list_gives_a_clear_error():
+    with pytest.raises(SentryError) as err:
+        parse_rules(LIST_RULES.replace("let trusted", "let other"))
+    assert "trusted" in str(err.value)

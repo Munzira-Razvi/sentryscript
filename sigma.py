@@ -16,7 +16,7 @@ def rule_to_sigma(rule):
     selection = {"type": rule.event}
     negated = []
     for f in rule.filters:
-        if f.op == "==":
+        if f.op in ("==", "in"):
             selection[f.field] = f.value
         else:
             negated.append({f.field: f.value})

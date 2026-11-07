@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from lark import Lark, Transformer
+from lark import Lark, Token, Transformer
 from lark.exceptions import UnexpectedInput, VisitError
 
 LEVELS = ("low", "medium", "high", "critical")
@@ -24,8 +24,17 @@ class Severity:
 @dataclass
 class Filter:
     field: str
-    op: str          # "==" or "!="
-    value: object
+    op: str          # "==", "!=", "in" or "not in"
+    value: object    # text or a number, or a list for "in" / "not in"
+
+@dataclass
+class ListRef:
+    name: str        # a reference to a list defined with "let"
+
+@dataclass
+class LetStmt:
+    name: str
+    values: list
 
 @dataclass
 class Rule:
@@ -43,8 +52,26 @@ class Rule:
     filters: list = field(default_factory=list)
 
 class ToAST(Transformer):
-    def start(self, rules):
-        return list(rules)
+    def start(self, items):
+        lists, rules = {}, []
+        for item in items:
+            if isinstance(item, LetStmt):
+                if item.name in lists:
+                    raise ValueError(f"The list '{item.name}' is defined twice")
+                lists[item.name] = item.values
+            else:
+                rules.append(item)
+        # Replace list names inside filters with the lists themselves
+        for rule in rules:
+            for f in rule.filters:
+                if isinstance(f.value, ListRef):
+                    name = f.value.name
+                    if name not in lists:
+                        raise ValueError(
+                            f"Rule '{rule.name}' uses the list '{name}', but it is "
+                            f'not defined. Add a line like: let {name} = ["..."]')
+                    f.value = lists[name]
+        return rules
 
     def duration(self, items):
         n, unit = items
@@ -56,10 +83,32 @@ class ToAST(Transformer):
             raise ValueError(f"Unknown severity '{level}'. Use one of: {', '.join(LEVELS)}")
         return Severity(level)
 
-    def filter(self, items):
-        name, op, val = items
-        value = str(val)[1:-1] if val.type == "ESCAPED_STRING" else int(val)
+    def value(self, items):
+        tok = items[0]
+        return str(tok)[1:-1] if tok.type == "ESCAPED_STRING" else int(tok)
+
+    def list_lit(self, items):
+        return list(items)
+
+    def let_stmt(self, items):
+        name, values = items
+        return LetStmt(str(name), values)
+
+    def membership(self, items):
+        m = items[0]
+        return ListRef(str(m)) if isinstance(m, Token) else m
+
+    def compare_filter(self, items):
+        name, op, value = items
         return Filter(str(name), str(op), value)
+
+    def in_filter(self, items):
+        name, members = items
+        return Filter(str(name), "in", members)
+
+    def not_in_filter(self, items):
+        name, members = items
+        return Filter(str(name), "not in", members)
 
     def filters(self, items):
         return list(items)
@@ -127,7 +176,7 @@ def parse_rules(text, name="rules"):
         raise SentryError(f"Problem in {name}: {e.orig_exc}")
 
 def load_rules(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return parse_rules(f.read(), path)
 
 if __name__ == "__main__":
