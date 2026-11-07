@@ -91,6 +91,16 @@ when admin_action at time not in 08:00..18:00 and user != "backup"
 See [docs/language.md](docs/language.md) for the full reference and the
 [examples](examples/) folder for complete programs.
 
+## Export to Sigma
+
+```
+python sentry.py compile rules.sentry --to sigma -o rules.sigma.yml
+```
+
+Count rules become Sigma correlation rules. Time-of-day conditions have no
+Sigma equivalent, so they are noted in the rule description and must be applied
+in your SIEM.
+
 ## How it works
 
 ```
@@ -111,6 +121,8 @@ rules.sentry --> Lark parser --> AST --> Rule engine --> Alerts
 | `vscode-extension/` | syntax highlighting for VS Code |
 | `make_logs.py` | generates sample attack traffic |
 | `tests/` | automated tests (pytest) |
+  `sigma.py` | exports rules to Sigma YAML |
+  
 
 ## Tests
 

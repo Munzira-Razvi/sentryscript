@@ -3,6 +3,7 @@ import sys
 from parser import load_rules, SentryError
 from engine import parse_events, run, COLORS, RESET
 from logformats import parse_auth_log
+from sigma import to_sigma
 
 def read_events(path, fmt, year):
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -45,12 +46,26 @@ def main():
     runp.add_argument("--year", type=int,
                       help="year for auth.log timestamps (default: this year)")
 
+    comp = sub.add_parser("compile", help="export rules to another format")
+    comp.add_argument("rules")
+    comp.add_argument("--to", choices=["sigma"], default="sigma")
+    comp.add_argument("-o", "--output", help="write to a file instead of the screen")
+
     args = ap.parse_args()
 
     try:
         rules = load_rules(args.rules)
         if args.command == "check":
             print(f"OK: {len(rules)} rule(s) valid in {args.rules}")
+            return
+        if args.command == "compile":
+            text = to_sigma(rules)
+            if args.output:
+                with open(args.output, "w", encoding="utf-8") as f:
+                    f.write(text)
+                print(f"Wrote {len(rules)} rule(s) as Sigma to {args.output}")
+            else:
+                print(text)
             return
         events = read_events(args.events, args.format, args.year)
         alerts = run(rules, events)
@@ -68,3 +83,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
