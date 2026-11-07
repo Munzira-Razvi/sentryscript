@@ -1,7 +1,7 @@
 import json
 from collections import defaultdict, deque
 from datetime import datetime
-from parser import load_rules, Alert, Block
+from parser import load_rules, Alert, Block, SentryError
 
 COLORS = {"low": "\033[36m", "medium": "\033[33m",
           "high": "\033[31m", "critical": "\033[1;41m"}
@@ -13,17 +13,24 @@ def fmt_duration(seconds):
             return f"{seconds // size}{unit}"
     return f"{seconds}s"
 
-def load_events(path):
+def parse_events(text):
     events = []
-    with open(path) as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                e = json.loads(line)
-                e["_ts"] = datetime.fromisoformat(e["time"]).timestamp()
-                events.append(e)
+    for n, line in enumerate(text.splitlines(), 1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            e = json.loads(line)
+            e["_ts"] = datetime.fromisoformat(e["time"]).timestamp()
+        except (ValueError, KeyError, TypeError) as err:
+            raise SentryError(f"Bad event on line {n} of the log: {err}")
+        events.append(e)
     events.sort(key=lambda e: e["_ts"])
     return events
+
+def load_events(path):
+    with open(path) as f:
+        return parse_events(f.read())
 
 def make_results(rule, event):
     results = []
@@ -41,6 +48,15 @@ def in_range(minute, start, end):
         return start <= minute <= end
     return minute >= start or minute <= end    # range crosses midnight
 
+def passes(rule, event):
+    for f in rule.filters:
+        actual = event.get(f.field)
+        if f.op == "==" and actual != f.value:
+            return False
+        if f.op == "!=" and actual == f.value:
+            return False
+    return True
+
 def run(rules, events):
     alerts = []
     windows = {r.name: defaultdict(deque) for r in rules}
@@ -48,6 +64,8 @@ def run(rules, events):
     for event in events:
         for rule in rules:
             if event["type"] != rule.event:
+                continue
+            if not passes(rule, event):
                 continue
 
             if rule.kind == "count":

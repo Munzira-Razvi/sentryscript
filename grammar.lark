@@ -5,9 +5,12 @@ rule: "rule" CNAME "{" severity? when_clause then_clause "}"
 severity: "severity" ":" CNAME
 
 ?when_clause: count_when | time_when
-count_when: "when" CNAME "from" CNAME "count" ">=" INT "within" duration
-time_when: "when" CNAME "at" "time" negate? "in" TIME ".." TIME
+count_when: "when" CNAME "from" CNAME "count" ">=" INT "within" duration filters
+time_when: "when" CNAME "at" "time" negate? "in" TIME ".." TIME filters
 negate: "not"
+
+filters: ("and" filter)*
+filter: CNAME OP (ESCAPED_STRING | INT)
 
 then_clause: "then" action+
 
@@ -18,6 +21,7 @@ block_action: "block" CNAME "for" duration
 duration: INT UNIT
 UNIT: /[smh]/
 TIME: /\d\d:\d\d/
+OP: "==" | "!="
 
 COMMENT: /#[^\n]*/
 

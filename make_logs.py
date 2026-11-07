@@ -1,32 +1,36 @@
 import json, random
 from datetime import datetime, timedelta
 
-random.seed(42)  # same data every run, so results are predictable
+random.seed(42)
 start = datetime(2026, 11, 6, 10, 0, 0)
 events = []
 
-# Normal traffic: each user occasionally mistypes a password once or twice
-normal_ips = [f"192.168.1.{i}" for i in range(10, 30)]
-for ip in normal_ips:
+def add(t, type_, ip, user, country):
+    events.append({"time": t.isoformat(), "type": type_,
+                   "ip": ip, "user": user, "country": country})
+
+# Normal traffic: each user mistypes a password once, then logs in
+for i in range(10, 30):
+    ip = f"192.168.1.{i}"
+    user = f"user{i}"
     t = start + timedelta(seconds=random.randint(0, 600))
-    events.append({"time": t.isoformat(), "type": "failed_login",
-                   "ip": ip, "user": f"user{ip[-2:]}"})
-    events.append({"time": (t + timedelta(seconds=20)).isoformat(),
-                   "type": "login", "ip": ip, "user": f"user{ip[-2:]}"})
+    add(t, "failed_login", ip, user, "PK")
+    add(t + timedelta(seconds=20), "login", ip, user, "PK")
 
-# The attack: 6 failed logins from one IP within 30 seconds
-attacker = "10.0.0.99"
-attack_start = start + timedelta(minutes=5)
+# Attacker 1: fast, 6 failures in 30 seconds
 for i in range(6):
-    t = attack_start + timedelta(seconds=i * 5)
-    events.append({"time": t.isoformat(), "type": "failed_login",
-                   "ip": attacker, "user": "admin"})
+    add(start + timedelta(minutes=5, seconds=i * 5),
+        "failed_login", "10.0.0.99", "admin", "RU")
 
-# Off-hours admin activity (one suspicious, one normal)
-events.append({"time": "2026-11-06T02:14:09", "type": "admin_action",
-               "ip": "172.16.0.7", "user": "root"})
-events.append({"time": "2026-11-06T10:30:00", "type": "admin_action",
-               "ip": "172.16.0.8", "user": "sara"})
+# Attacker 2: slower, 12 failures over 4 minutes
+for i in range(12):
+    add(start + timedelta(minutes=20, seconds=i * 20),
+        "failed_login", "203.0.113.50", "admin", "CN")
+
+# Admin actions: one suspicious, one scheduled backup job, one normal
+add(datetime(2026, 11, 6, 2, 14, 9), "admin_action", "172.16.0.7", "root", "PK")
+add(datetime(2026, 11, 6, 3, 0, 0), "admin_action", "172.16.0.9", "backup", "PK")
+add(datetime(2026, 11, 6, 10, 30, 0), "admin_action", "172.16.0.8", "sara", "PK")
 
 events.sort(key=lambda e: e["time"])
 

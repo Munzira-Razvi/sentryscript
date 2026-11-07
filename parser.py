@@ -5,6 +5,9 @@ from lark.exceptions import UnexpectedInput, VisitError
 
 LEVELS = ("low", "medium", "high", "critical")
 
+class SentryError(Exception):
+    """A problem in a rule file, with a message safe to show to users."""
+
 @dataclass
 class Alert:
     message: str
@@ -19,6 +22,12 @@ class Severity:
     level: str
 
 @dataclass
+class Filter:
+    field: str
+    op: str          # "==" or "!="
+    value: object
+
+@dataclass
 class Rule:
     name: str
     severity: str
@@ -31,6 +40,7 @@ class Rule:
     start: int = 0            # minutes since midnight
     end: int = 0
     negate: bool = False
+    filters: list = field(default_factory=list)
 
 class ToAST(Transformer):
     def start(self, rules):
@@ -46,25 +56,36 @@ class ToAST(Transformer):
             raise ValueError(f"Unknown severity '{level}'. Use one of: {', '.join(LEVELS)}")
         return Severity(level)
 
+    def filter(self, items):
+        name, op, val = items
+        value = str(val)[1:-1] if val.type == "ESCAPED_STRING" else int(val)
+        return Filter(str(name), str(op), value)
+
+    def filters(self, items):
+        return list(items)
+
     def count_when(self, items):
-        event, group, n, window = items
+        event, group, n, window, filters = items
         return dict(kind="count", event=str(event), group_by=str(group),
-                    threshold=int(n), window=window)
+                    threshold=int(n), window=window, filters=filters)
 
     def negate(self, items):
         return True
 
     def time_when(self, items):
         event = str(items[0])
-        negate = any(isinstance(i, bool) for i in items[1:])
-        times = [i for i in items[1:] if not isinstance(i, bool)]
+        filters = items[-1]
+        middle = items[1:-1]
+        negate = any(isinstance(i, bool) for i in middle)
+        times = [i for i in middle if not isinstance(i, bool)]
 
         def minutes(t):
             h, m = str(t).split(":")
             return int(h) * 60 + int(m)
 
         return dict(kind="time", event=event, negate=negate,
-                    start=minutes(times[0]), end=minutes(times[1]))
+                    start=minutes(times[0]), end=minutes(times[1]),
+                    filters=filters)
 
     def alert_action(self, items):
         return Alert(str(items[0])[1:-1])     # remove the quotes
@@ -87,16 +108,11 @@ class ToAST(Transformer):
                 actions = it
         return Rule(name=name, severity=severity, actions=actions, **when)
 
-class SentryError(Exception):
-    """A problem in a rule file, with a message safe to show to users."""
-
 GRAMMAR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "grammar.lark")
 
-def load_rules(path):
+def parse_rules(text, name="rules"):
     with open(GRAMMAR) as f:
         parser = Lark(f.read(), parser="lalr")
-    with open(path) as f:
-        text = f.read()
     try:
         tree = parser.parse(text)
         return ToAST().transform(tree)
@@ -104,11 +120,15 @@ def load_rules(path):
         expected = getattr(e, "expected", None) or getattr(e, "allowed", None)
         hint = f"\nExpected one of: {', '.join(sorted(expected))}" if expected else ""
         raise SentryError(
-            f"Syntax error in {path}, line {e.line}, column {e.column}:\n"
+            f"Syntax error in {name}, line {e.line}, column {e.column}:\n"
             f"{e.get_context(text)}{hint}"
         )
     except VisitError as e:
-        raise SentryError(f"Problem in {path}: {e.orig_exc}")
+        raise SentryError(f"Problem in {name}: {e.orig_exc}")
+
+def load_rules(path):
+    with open(path) as f:
+        return parse_rules(f.read(), path)
 
 if __name__ == "__main__":
     for r in load_rules("rules.sentry"):
