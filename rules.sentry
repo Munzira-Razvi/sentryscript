@@ -1,4 +1,14 @@
-# Brute force from anywhere except our home country
+# ==========================================================
+# SentryScript detection policy for our login system
+# Home country: PK. Trusted admin addresses: 172.16.0.7, 172.16.0.8
+# ==========================================================
+
+
+# ----- Password guessing ----------------------------------
+
+# Fast guessing from abroad: 5 failed logins from one IP within 2 minutes.
+# Home-country traffic is excluded here and handled by the next rule.
+# Blocks the source address (simulated).
 rule brute_force {
   severity: high
   when failed_login from ip count >= 5 within 2m and country != "PK"
@@ -6,16 +16,39 @@ rule brute_force {
        block ip for 30m
 }
 
-# Fast guessing aimed at the admin account
+# Guessing from inside the home country. The threshold is higher (8) because
+# staff mistype passwords more often than attackers abroad do.
+# Alert only: no block, since the source may be a real employee.
+rule home_country_guessing {
+  severity: medium
+  when failed_login from ip count >= 8 within 2m and country == "PK"
+  then alert "Repeated failures from {ip} inside the home country"
+}
+
+# Fast guessing aimed at the admin account, from any country.
+# Stricter window (1 minute) because admin is the most valuable target.
 rule admin_targeted {
   severity: critical
   when failed_login from ip count >= 5 within 1m and user == "admin"
   then alert "Admin account targeted from {ip}"
 }
 
-# Admin actions outside working hours, except the scheduled backup job
+
+# ----- Suspicious admin activity --------------------------
+
+# Admin actions outside working hours (08:00 to 18:00).
+# The scheduled backup job runs at night on purpose, so it is excluded.
 rule off_hours_admin {
   severity: medium
   when admin_action at time not in 08:00..18:00 and user != "backup"
   then alert "Off-hours admin action by {user}"
+}
+
+# A successful admin login from an address we don't recognise.
+# "count >= 1" means any single event; the two != filters list our trusted
+# admin addresses. Update them when the trusted addresses change.
+rule unknown_admin_login {
+  severity: high
+  when login from ip count >= 1 within 1m and user == "admin" and ip != "172.16.0.7" and ip != "172.16.0.8"
+  then alert "Admin login from unfamiliar address {ip}"
 }

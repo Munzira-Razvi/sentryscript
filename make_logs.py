@@ -34,6 +34,14 @@ add(datetime(2026, 11, 6, 10, 30, 0), "admin_action", "172.16.0.8", "sara", "PK"
 
 events.sort(key=lambda e: e["time"])
 
+# Admin login from an address nobody recognises
+add(datetime(2026, 11, 6, 11, 15, 0), "login", "198.51.100.23", "admin", "RU")
+
+# Attacker 3: guessing from inside the home country
+for i in range(9):
+    add(start + timedelta(minutes=40, seconds=i * 10),
+        "failed_login", "192.168.1.200", "sara", "PK")
+
 with open("events.jsonl", "w") as f:
     for e in events:
         f.write(json.dumps(e) + "\n")
