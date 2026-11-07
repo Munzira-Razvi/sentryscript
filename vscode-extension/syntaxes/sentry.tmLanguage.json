@@ -1,0 +1,27 @@
+{
+  "scopeName": "source.sentry",
+  "name": "SentryScript",
+  "patterns": [
+    { "name": "comment.line.number-sign.sentry", "match": "#.*$" },
+    {
+      "name": "string.quoted.double.sentry",
+      "begin": "\"",
+      "end": "\"",
+      "patterns": [
+        { "name": "variable.other.placeholder.sentry",
+          "match": "\\{[A-Za-z_][A-Za-z0-9_]*\\}" }
+      ]
+    },
+    { "name": "entity.name.function.rule.sentry",
+      "match": "(?<=rule\\s)[A-Za-z_][A-Za-z0-9_]*" },
+    { "name": "keyword.control.sentry",
+      "match": "\\b(rule|when|then|and|not|in|at|time|from|count|within|for|severity)\\b" },
+    { "name": "support.function.sentry", "match": "\\b(alert|block)\\b" },
+    { "name": "constant.language.severity.sentry",
+      "match": "\\b(low|medium|high|critical)\\b" },
+    { "name": "constant.numeric.time.sentry", "match": "\\b\\d\\d:\\d\\d\\b" },
+    { "name": "constant.numeric.duration.sentry", "match": "\\b\\d+[smh]\\b" },
+    { "name": "constant.numeric.sentry", "match": "\\b\\d+\\b" },
+    { "name": "keyword.operator.sentry", "match": ">=|==|!=|\\.\\." }
+  ]
+}

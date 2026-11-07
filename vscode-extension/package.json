@@ -1,0 +1,22 @@
+{
+  "name": "sentryscript-lang",
+  "displayName": "SentryScript",
+  "description": "Syntax highlighting for SentryScript detection rules",
+  "version": "0.1.0",
+  "publisher": "munzira",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [{
+      "id": "sentry",
+      "aliases": ["SentryScript", "sentry"],
+      "extensions": [".sentry"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "sentry",
+      "scopeName": "source.sentry",
+      "path": "./syntaxes/sentry.tmLanguage.json"
+    }]
+  }
+}
