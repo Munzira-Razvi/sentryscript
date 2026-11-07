@@ -105,10 +105,13 @@ rules.sentry --> Lark parser --> AST --> Rule engine --> Alerts
 | `parser.py` | turns rule text into Python objects, with friendly errors |
 | `engine.py` | sliding-window, time-of-day and filter evaluation |
 | `logformats.py` | converts Linux `auth.log` lines into events |
-| `sentry.py` | command-line tool (`check` and `run`) |
+| `sigma.py` | exports rules to Sigma YAML |
+| `sentry.py` | command-line tool (`check`, `run` and `compile`) |
 | `app.py` and `templates/` | web playground |
 | `vscode-extension/` | syntax highlighting for VS Code |
 | `make_logs.py` | generates sample attack traffic |
+| `tests/` | automated tests (pytest) |
+
 ## Tests
 
 ```
