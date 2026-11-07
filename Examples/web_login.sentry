@@ -1,0 +1,14 @@
+# Protect a login page from password guessing
+rule brute_force {
+  severity: high
+  when failed_login from ip count >= 5 within 2m
+  then alert "Brute force from {ip}"
+       block ip for 30m
+}
+
+# A slower, quieter guessing attack spread over an hour
+rule slow_guessing {
+  severity: medium
+  when failed_login from ip count >= 15 within 1h
+  then alert "Slow password guessing from {ip}"
+}

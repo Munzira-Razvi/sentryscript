@@ -1,0 +1,19 @@
+# A small company's whole security policy in one file
+rule brute_force {
+  severity: critical
+  when failed_login from ip count >= 10 within 5m
+  then alert "Attack from {ip}"
+       block ip for 1h
+}
+
+rule user_lockout_warning {
+  severity: low
+  when failed_login from user count >= 3 within 10m
+  then alert "User {user} is struggling to log in"
+}
+
+rule off_hours_admin {
+  severity: high
+  when admin_action at time not in 07:00..20:00
+  then alert "Admin action by {user} outside business hours"
+}

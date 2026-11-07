@@ -1,0 +1,13 @@
+# Admin actions outside working hours
+rule off_hours_admin {
+  severity: medium
+  when admin_action at time not in 08:00..18:00
+  then alert "Off-hours admin action by {user}"
+}
+
+# Any admin activity during the overnight maintenance-free window
+rule night_admin {
+  severity: high
+  when admin_action at time in 00:00..04:00
+  then alert "Admin activity at night by {user} from {ip}"
+}
