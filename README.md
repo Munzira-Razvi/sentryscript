@@ -33,6 +33,8 @@ python make_logs.py                                   # create sample logs
 python sentry.py check rules.sentry                   # validate rules
 python sentry.py run rules.sentry events.jsonl        # run rules on logs
 python sentry.py run rules.sentry events.jsonl --explain   # show why each alert fired
+pip install -r requirements.txt
+python app.py        # web playground at http://127.0.0.1:5000
 ```
 
 Example output:

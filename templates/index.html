@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SentryScript Playground</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #8b949e;
+    --low: #39c5cf; --medium: #e3b341; --high: #f85149; --critical: #ff7b72;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, sans-serif;
+         background: var(--bg); color: var(--text); }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--border);
+           display: flex; align-items: baseline; gap: 12px; }
+  header h1 { margin: 0; font-size: 20px; }
+  header span { color: var(--muted); font-size: 14px; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  textarea { width: 100%; height: 300px; background: var(--panel); color: var(--text);
+             border: 1px solid var(--border); border-radius: 8px; padding: 12px;
+             font: 13px/1.5 Consolas, monospace; resize: vertical; }
+  .bar { padding: 0 24px; display: flex; align-items: center; gap: 12px; }
+  button { background: #238636; color: #fff; border: 0; border-radius: 6px;
+           padding: 10px 20px; font-size: 15px; cursor: pointer; }
+  button:hover { background: #2ea043; }
+  .hint { color: var(--muted); font-size: 13px; }
+  #results { padding: 16px 24px 40px; }
+  .summary { color: var(--muted); margin-bottom: 12px; }
+  .alert { background: var(--panel); border: 1px solid var(--border);
+           border-left: 5px solid var(--medium); border-radius: 8px;
+           padding: 12px 16px; margin-bottom: 12px; }
+  .alert.low { border-left-color: var(--low); }
+  .alert.medium { border-left-color: var(--medium); }
+  .alert.high { border-left-color: var(--high); }
+  .alert.critical { border-left-color: var(--critical); background: #2d1417; }
+  .badge { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 8px;
+           border-radius: 4px; margin-right: 8px; color: #0d1117; background: var(--medium); }
+  .badge.low { background: var(--low); }
+  .badge.high { background: var(--high); }
+  .badge.critical { background: var(--critical); }
+  .rule { font-weight: 600; }
+  .time { color: var(--muted); font-size: 13px; margin-left: 8px; }
+  .action { margin: 6px 0 0 4px; font-family: Consolas, monospace; font-size: 13px; }
+  .action b { color: var(--muted); }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  table { border-collapse: collapse; margin-top: 6px; font: 12px Consolas, monospace; }
+  td { padding: 2px 12px 2px 0; color: var(--text); }
+  pre.error { background: #2d1417; border: 1px solid var(--high); border-radius: 8px;
+              padding: 12px; color: #ffa198; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>SentryScript Playground</h1>
+  <span>Write detection rules, run them on logs, see why alerts fire.</span>
+</header>
+
+<main>
+  <div>
+    <label for="rules">Rules (.sentry)</label>
+    <textarea id="rules" spellcheck="false">{{ rules }}</textarea>
+  </div>
+  <div>
+    <label for="events">Events (JSON lines)</label>
+    <textarea id="events" spellcheck="false">{{ events }}</textarea>
+  </div>
+</main>
+
+<div class="bar">
+  <button id="run">Run rules</button>
+  <span class="hint">or press Ctrl+Enter</span>
+</div>
+
+<div id="results"></div>
+
+<script>
+  const rulesBox = document.getElementById("rules");
+  const eventsBox = document.getElementById("events");
+  const results = document.getElementById("results");
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  async function runRules() {
+    results.textContent = "Running...";
+    const res = await fetch("/api/run", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rules: rulesBox.value, events: eventsBox.value })
+    });
+    const data = await res.json();
+    results.innerHTML = "";
+
+    if (!data.ok) {
+      results.appendChild(el("pre", "error", "error: " + data.error));
+      return;
+    }
+
+    results.appendChild(el("div", "summary",
+      "Processed " + data.event_count + " events with " + data.rule_count +
+      " rule(s) - " + data.alerts.length + " alert(s)"));
+
+    if (data.alerts.length === 0) {
+      results.appendChild(el("div", "summary", "No alerts."));
+      return;
+    }
+
+    data.alerts.forEach(function (a) {
+      const card = el("div", "alert " + a.severity);
+      const head = el("div");
+      head.appendChild(el("span", "badge " + a.severity, a.severity.toUpperCase()));
+      head.appendChild(el("span", "rule", a.rule));
+      head.appendChild(el("span", "time", a.time));
+      card.appendChild(head);
+
+      a.actions.forEach(function (act) {
+        const line = el("div", "action");
+        line.appendChild(el("b", null, act[0] + ": "));
+        line.appendChild(document.createTextNode(act[1]));
+        card.appendChild(line);
+      });
+
+      const details = el("details");
+      details.appendChild(el("summary", null,
+        "Why? " + a.evidence.length + " triggering event" +
+        (a.evidence.length === 1 ? "" : "s")));
+      const table = el("table");
+      a.evidence.forEach(function (ev) {
+        const tr = el("tr");
+        const extras = Object.keys(ev)
+          .filter(function (k) { return k !== "time" && k !== "type"; })
+          .map(function (k) { return k + "=" + ev[k]; }).join(", ");
+        [ev.time, ev.type, extras].forEach(function (cell) {
+          tr.appendChild(el("td", null, cell));
+        });
+        table.appendChild(tr);
+      });
+      details.appendChild(table);
+      card.appendChild(details);
+      results.appendChild(card);
+    });
+  }
+
+  document.getElementById("run").addEventListener("click", runRules);
+  document.addEventListener("keydown", function (e) {
+    if (e.ctrlKey && e.key === "Enter") runRules();
+  });
+  runRules();
+</script>
+</body>
+</html>
