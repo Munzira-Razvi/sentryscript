@@ -109,6 +109,12 @@ rules.sentry --> Lark parser --> AST --> Rule engine --> Alerts
 | `app.py` and `templates/` | web playground |
 | `vscode-extension/` | syntax highlighting for VS Code |
 | `make_logs.py` | generates sample attack traffic |
+## Tests
+
+```
+pip install pytest
+python -m pytest -v
+```
 
 ## Editor support (VS Code)
 
