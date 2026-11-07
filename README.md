@@ -121,9 +121,7 @@ rules.sentry --> Lark parser --> AST --> Rule engine --> Alerts
 | `vscode-extension/` | syntax highlighting for VS Code |
 | `make_logs.py` | generates sample attack traffic |
 | `tests/` | automated tests (pytest) |
-  `sigma.py` | exports rules to Sigma YAML |
   
-
 ## Tests
 
 ```
