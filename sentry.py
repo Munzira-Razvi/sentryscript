@@ -3,14 +3,21 @@ import sys
 from parser import load_rules, SentryError
 from engine import load_events, run, COLORS, RESET
 
-def print_alerts(alerts):
+def print_alerts(alerts, explain=False):
     for a in alerts:
         color = COLORS[a["severity"]]
         print(f"{color}[{a['severity'].upper()}]{RESET} {a['rule']} at {a['time']}")
         for kind, text in a["actions"]:
             print(f"  {kind}: {text}")
         n = len(a["evidence"])
-        print(f"  triggered by {n} event{'s' if n != 1 else ''}\n")
+        print(f"  triggered by {n} event{'s' if n != 1 else ''}")
+        if explain:
+            print("  evidence:")
+            for e in a["evidence"]:
+                extras = ", ".join(f"{k}={v}" for k, v in e.items()
+                                   if k not in ("time", "type", "_ts"))
+                print(f"    {e['time']}  {e['type']:<14} {extras}")
+        print()
 
 def main():
     ap = argparse.ArgumentParser(
@@ -23,6 +30,8 @@ def main():
     runp = sub.add_parser("run", help="run rules against an event log")
     runp.add_argument("rules")
     runp.add_argument("events")
+    runp.add_argument("--explain", action="store_true",
+                      help="show the events that triggered each alert")
 
     args = ap.parse_args()
 
@@ -41,7 +50,7 @@ def main():
         sys.exit(1)
 
     print(f"Processed {len(events)} events with {len(rules)} rule(s)\n")
-    print_alerts(alerts)
+    print_alerts(alerts, args.explain)
     if not alerts:
         print("No alerts.")
 

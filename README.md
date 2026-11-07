@@ -21,6 +21,7 @@ rule brute_force {
 - **Time windows built in**: sliding-window counting per IP or user is one phrase.
 - **Safe by design**: actions like `block` are simulated, so rules can be tested without side effects.
 - **Helpful errors**: mistakes show the file, line, column and what was expected.
+- **Explainable alerts**: --explain shows the exact events behind every alert.
 
 ## Quick start
 
@@ -31,6 +32,7 @@ pip install lark
 python make_logs.py                                   # create sample logs
 python sentry.py check rules.sentry                   # validate rules
 python sentry.py run rules.sentry events.jsonl        # run rules on logs
+python sentry.py run rules.sentry events.jsonl --explain   # show why each alert fired
 ```
 
 Example output:
