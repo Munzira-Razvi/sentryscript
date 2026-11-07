@@ -1,3 +1,4 @@
+{"time": "2026-11-06T02:14:09", "type": "admin_action", "ip": "172.16.0.7", "user": "root"}
 {"time": "2026-11-06T10:00:25", "type": "failed_login", "ip": "192.168.1.11", "user": "user11"}
 {"time": "2026-11-06T10:00:27", "type": "failed_login", "ip": "192.168.1.26", "user": "user26"}
 {"time": "2026-11-06T10:00:30", "type": "failed_login", "ip": "192.168.1.21", "user": "user21"}
@@ -44,3 +45,4 @@
 {"time": "2026-11-06T10:09:38", "type": "login", "ip": "192.168.1.17", "user": "user17"}
 {"time": "2026-11-06T10:09:38", "type": "login", "ip": "192.168.1.29", "user": "user29"}
 {"time": "2026-11-06T10:09:54", "type": "login", "ip": "192.168.1.27", "user": "user27"}
+{"time": "2026-11-06T10:30:00", "type": "admin_action", "ip": "172.16.0.8", "user": "sara"}

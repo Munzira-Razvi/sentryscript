@@ -22,6 +22,12 @@ for i in range(6):
     events.append({"time": t.isoformat(), "type": "failed_login",
                    "ip": attacker, "user": "admin"})
 
+# Off-hours admin activity (one suspicious, one normal)
+events.append({"time": "2026-11-06T02:14:09", "type": "admin_action",
+               "ip": "172.16.0.7", "user": "root"})
+events.append({"time": "2026-11-06T10:30:00", "type": "admin_action",
+               "ip": "172.16.0.8", "user": "sara"})
+
 events.sort(key=lambda e: e["time"])
 
 with open("events.jsonl", "w") as f:

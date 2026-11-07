@@ -5,3 +5,10 @@ rule brute_force {
   then alert "Brute force from {ip}"
        block ip for 30m
 }
+
+# Detect admin activity outside working hours
+rule off_hours_admin {
+  severity: medium
+  when admin_action at time not in 08:00..18:00
+  then alert "Off-hours admin action by {user}"
+}

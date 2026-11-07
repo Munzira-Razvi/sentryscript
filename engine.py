@@ -25,6 +25,22 @@ def load_events(path):
     events.sort(key=lambda e: e["_ts"])
     return events
 
+def make_results(rule, event):
+    results = []
+    for action in rule.actions:
+        if isinstance(action, Alert):
+            results.append(("alert", action.message.format_map(event)))
+        elif isinstance(action, Block):
+            target = event.get(action.field)
+            results.append(("block", f"{target} for "
+                            f"{fmt_duration(action.seconds)} (simulated)"))
+    return results
+
+def in_range(minute, start, end):
+    if start <= end:
+        return start <= minute <= end
+    return minute >= start or minute <= end    # range crosses midnight
+
 def run(rules, events):
     alerts = []
     windows = {r.name: defaultdict(deque) for r in rules}
@@ -33,46 +49,32 @@ def run(rules, events):
         for rule in rules:
             if event["type"] != rule.event:
                 continue
-            key = event.get(rule.group_by)
-            if key is None:
-                continue
 
-            window = windows[rule.name][key]
-            window.append(event)
+            if rule.kind == "count":
+                key = event.get(rule.group_by)
+                if key is None:
+                    continue
+                window = windows[rule.name][key]
+                window.append(event)
+                while window and event["_ts"] - window[0]["_ts"] > rule.window:
+                    window.popleft()
+                if len(window) >= rule.threshold:
+                    alerts.append({
+                        "rule": rule.name, "severity": rule.severity,
+                        "time": event["time"],
+                        "actions": make_results(rule, event),
+                        "evidence": list(window),
+                    })
+                    window.clear()
 
-            while window and event["_ts"] - window[0]["_ts"] > rule.window:
-                window.popleft()
-
-            if len(window) >= rule.threshold:
-                results = []
-                for action in rule.actions:
-                    if isinstance(action, Alert):
-                        results.append(("alert", action.message.format_map(event)))
-                    elif isinstance(action, Block):
-                        target = event.get(action.field)
-                        results.append(("block", f"{target} for "
-                                        f"{fmt_duration(action.seconds)} (simulated)"))
-                alerts.append({
-                    "rule": rule.name,
-                    "severity": rule.severity,
-                    "time": event["time"],
-                    "actions": results,
-                    "evidence": list(window),
-                })
-                window.clear()
+            elif rule.kind == "time":
+                dt = datetime.fromisoformat(event["time"])
+                inside = in_range(dt.hour * 60 + dt.minute, rule.start, rule.end)
+                if inside != rule.negate:
+                    alerts.append({
+                        "rule": rule.name, "severity": rule.severity,
+                        "time": event["time"],
+                        "actions": make_results(rule, event),
+                        "evidence": [event],
+                    })
     return alerts
-
-if __name__ == "__main__":
-    rules = load_rules("rules.sentry")
-    events = load_events("events.jsonl")
-    alerts = run(rules, events)
-
-    print(f"Processed {len(events)} events with {len(rules)} rule(s)\n")
-    for a in alerts:
-        color = COLORS[a["severity"]]
-        print(f"{color}[{a['severity'].upper()}]{RESET} {a['rule']} at {a['time']}")
-        for kind, text in a["actions"]:
-            print(f"  {kind}: {text}")
-        print(f"  triggered by {len(a['evidence'])} events\n")
-    if not alerts:
-        print("No alerts.")

@@ -4,7 +4,11 @@ rule: "rule" CNAME "{" severity? when_clause then_clause "}"
 
 severity: "severity" ":" CNAME
 
-when_clause: "when" CNAME "from" CNAME "count" ">=" INT "within" duration
+?when_clause: count_when | time_when
+count_when: "when" CNAME "from" CNAME "count" ">=" INT "within" duration
+time_when: "when" CNAME "at" "time" negate? "in" TIME ".." TIME
+negate: "not"
+
 then_clause: "then" action+
 
 ?action: alert_action | block_action
@@ -13,6 +17,7 @@ block_action: "block" CNAME "for" duration
 
 duration: INT UNIT
 UNIT: /[smh]/
+TIME: /\d\d:\d\d/
 
 COMMENT: /#[^\n]*/
 

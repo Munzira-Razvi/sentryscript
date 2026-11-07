@@ -9,7 +9,8 @@ def print_alerts(alerts):
         print(f"{color}[{a['severity'].upper()}]{RESET} {a['rule']} at {a['time']}")
         for kind, text in a["actions"]:
             print(f"  {kind}: {text}")
-        print(f"  triggered by {len(a['evidence'])} events\n")
+        n = len(a["evidence"])
+        print(f"  triggered by {n} event{'s' if n != 1 else ''}\n")
 
 def main():
     ap = argparse.ArgumentParser(
